@@ -2,195 +2,108 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace ClearSky
+
+public class DemoCollegeStudentController : MonoBehaviour
 {
-    public class DemoCollegeStudentController : MonoBehaviour
+
+    private Vector2 followSpot;
+    public float speed = 5f;
+    public float persectiveScale;
+    public Animator  anim; 
+    public SpriteRenderer spriteRenderer;
+    private Rigidbody2D rb;
+
+    void Start()
     {
-        public float movePower = 10f;
-        public float KickBoardMovePower = 15f;
-        public float jumpPower = 20f; // Set Gravity Scale in Rigidbody2D Component to 5
+        EnsureCursorVisible();
+        followSpot = transform.position;
+        rb = GetComponent<Rigidbody2D>();
+        anim = GetComponent<Animator>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
+        //followSpot = PlayerMemory.HasSavedPosition ? PlayerMemory.LastPosition : transform.position;
 
-        // === NEW: пределы хождения ===
-        [Header("Walk Area")]
-        public BoxCollider2D walkArea;      // сюда перетащи BoxCollider2D области
-        public Vector2 padding = new Vector2(0.1f, 0.1f); // отступы от краёв (пол-ширины персонажа и т.п.)
+        rb = GetComponent<Rigidbody2D>();
+        anim = GetComponent<Animator>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
+    }
 
-        private Rigidbody2D rb;
-        private Animator anim;
-        Vector3 movement;
-        private int direction = 1;
-        bool isJumping = false;
-        private bool alive = true;
-        private bool isKickboard = false;
+    /* if (PlayerMemory.HasSavedPosition)
+     {
+         transform.position = PlayerMemory.LastPosition;
+         followSpot = PlayerMemory.LastPosition;
+     }
+     else
+     {
+         followSpot = transform.position;
+     }
+  }*/
 
-        void Start()
+    
+    public float minX = -10f;
+    public float maxX = 10f;
+    public float minY = -5f;
+    public float maxY = 5f;
+
+         // ← не забудь вверху!
+         private void EnsureCursorVisible()
+         {
+             if (!Cursor.visible || Cursor.lockState != CursorLockMode.None)
+             {
+                 Cursor.visible = true;
+                 Cursor.lockState = CursorLockMode.None;
+             }
+         }
+
+
+    void Update()
+    {
+        EnsureCursorVisible();
+        var mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+
+       /* if (Input.GetMouseButtonDown(0))
         {
-            rb = GetComponent<Rigidbody2D>();
-            anim = GetComponent<Animator>();
+            // НЕ ставим точку, если клик по UI
+            if (EventSystem.current.IsPointerOverGameObject()) return;
 
-            // Если у персонажа есть свой Collider2D — автоматически возьмём половину его размеров как отступ
-            var myCol = GetComponent<Collider2D>();
-            if (myCol)
-            {
-                var ext = myCol.bounds.extents;
-                padding = new Vector2(Mathf.Max(padding.x, ext.x), Mathf.Max(padding.y, ext.y));
-            }
-        }
+            followSpot = new Vector2(mousePosition.x, mousePosition.y);
+        }*/
 
-        private void Update()
+        Vector2 direction = followSpot - rb.position;
+
+        anim.SetFloat("MoveX", direction.x);
+        anim.SetFloat("MoveY", direction.y);
+        anim.SetBool("IsMoving", direction.magnitude > 0.1f);
+
+        if (direction.x > 0.01f)
+            spriteRenderer.flipX = false;
+        else if (direction.x < -0.01f)
+            spriteRenderer.flipX = true;
+        if (!Cursor.visible || Cursor.lockState != CursorLockMode.None)
         {
-            Restart();
-            if (alive)
-            {
-                Hurt();
-                Die();
-                Attack();
-                Jump();
-                KickBoard();
-                Run();
-            }
-        }
-
-        // === NEW: зажимаем позицию внутри прямоугольника после всех перемещений ===
-        private void LateUpdate()
-        {
-            if (!walkArea) return;
-
-            Bounds b = walkArea.bounds; // мировые координаты
-            Vector3 p = transform.position;
-
-            float minX = b.min.x + padding.x;
-            float maxX = b.max.x - padding.x;
-            float minY = b.min.y + padding.y;
-            float maxY = b.max.y - padding.y;
-
-            p.x = Mathf.Clamp(p.x, minX, maxX);
-            p.y = Mathf.Clamp(p.y, minY, maxY);
-
-            // через Rigidbody2D, чтобы не ругаться с физикой
-            rb.position = p;
-        }
-
-        private void OnTriggerEnter2D(Collider2D other)
-        {
-            anim.SetBool("isJump", false);
-        }
-
-        void KickBoard()
-        {
-            if (Input.GetKeyDown(KeyCode.Alpha4) && isKickboard)
-            {
-                isKickboard = false;
-                anim.SetBool("isKickBoard", false);
-            }
-            else if (Input.GetKeyDown(KeyCode.Alpha4) && !isKickboard )
-            {
-                isKickboard = true;
-                anim.SetBool("isKickBoard", true);
-            }
-        }
-
-        void Run()
-        {
-            if (!isKickboard)
-            {
-                Vector3 moveVelocity = Vector3.zero;
-                anim.SetBool("isRun", false);
-
-                if (Input.GetAxisRaw("Horizontal") < 0)
-                {
-                    direction = -1;
-                    moveVelocity = Vector3.left;
-                    transform.localScale = new Vector3(direction, 1, 1);
-                    if (!anim.GetBool("isJump"))
-                        anim.SetBool("isRun", true);
-                }
-                if (Input.GetAxisRaw("Horizontal") > 0)
-                {
-                    direction = 1;
-                    moveVelocity = Vector3.right;
-                    transform.localScale = new Vector3(direction, 1, 1);
-                    if (!anim.GetBool("isJump"))
-                        anim.SetBool("isRun", true);
-                }
-
-                // оставляю твою логику перемещения
-                transform.position += moveVelocity * movePower * Time.deltaTime;
-            }
-            else
-            {
-                Vector3 moveVelocity = Vector3.zero;
-                if (Input.GetAxisRaw("Horizontal") < 0)
-                {
-                    direction = -1;
-                    moveVelocity = Vector3.left;
-                    transform.localScale = new Vector3(direction, 1, 1);
-                }
-                if (Input.GetAxisRaw("Horizontal") > 0)
-                {
-                    direction = 1;
-                    moveVelocity = Vector3.right;
-                    transform.localScale = new Vector3(direction, 1, 1);
-                }
-                transform.position += moveVelocity * KickBoardMovePower * Time.deltaTime;
-            }
-        }
-
-        void Jump()
-        {
-            if ((Input.GetButtonDown("Jump") || Input.GetAxisRaw("Vertical") > 0) && !anim.GetBool("isJump"))
-            {
-                isJumping = true;
-                anim.SetBool("isJump", true);
-            }
-            if (!isJumping) return;
-
-            rb.velocity = Vector2.zero;
-            Vector2 jumpVelocity = new Vector2(0, jumpPower);
-            rb.AddForce(jumpVelocity, ForceMode2D.Impulse);
-            isJumping = false;
-        }
-
-        void Attack()
-        {
-            if (Input.GetKeyDown(KeyCode.Alpha1))
-            {
-                anim.SetTrigger("attack");
-            }
-        }
-
-        void Hurt()
-        {
-            if (Input.GetKeyDown(KeyCode.Alpha2))
-            {
-                anim.SetTrigger("hurt");
-                if (direction == 1)
-                    rb.AddForce(new Vector2(-5f, 1f), ForceMode2D.Impulse);
-                else
-                    rb.AddForce(new Vector2(5f, 1f), ForceMode2D.Impulse);
-            }
-        }
-
-        void Die()
-        {
-            if (Input.GetKeyDown(KeyCode.Alpha3))
-            {
-                isKickboard = false;
-                anim.SetBool("isKickBoard", false);
-                anim.SetTrigger("die");
-                alive = false;
-            }
-        }
-
-        void Restart()
-        {
-            if (Input.GetKeyDown(KeyCode.Alpha0))
-            {
-                isKickboard = false;
-                anim.SetBool("isKickBoard", false);
-                anim.SetTrigger("idle");
-                alive = true;
-            }
+            Cursor.visible = true;
+            Cursor.lockState = CursorLockMode.None;
         }
     }
+
+
+
+    void FixedUpdate()
+    {
+        Debug.Log("followSpot: " + followSpot + " | position: " + transform.position);
+        float distance = Vector2.Distance(rb.position, followSpot);
+        float step = speed * Time.fixedDeltaTime;
+
+        if (distance > step)
+        {
+            Vector2 direction = (followSpot - rb.position).normalized;
+            rb.MovePosition(rb.position + direction * step);
+        }
+        else
+        {
+            rb.MovePosition(followSpot);
+        }
+    }
+
+
 }
+
