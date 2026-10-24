@@ -20,7 +20,7 @@ AnimationClip:
   m_PPtrCurves:
   - serializedVersion: 2
     curve:
-    - time: 0.0
+    - time: 0
       value: {fileID: 21300000, guid: a087743b944b9433285f29facb5e9ab6, type: 3}
     - time: 0.1
       value: {fileID: 21300000, guid: 2e2bea0997e914238abdd3430c501c2d, type: 3}

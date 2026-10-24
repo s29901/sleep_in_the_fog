@@ -13,6 +13,9 @@ namespace SITF
         public float speed = 3f;
         [Tooltip("Где героиня может ходить (мир, в юнитах)")]
         public Vector2 minBounds = new Vector2(-9, -5), maxBounds = new Vector2(27, -3);
+        [Tooltip("Ходить только влево-вправо (по линии, на которой героиня стоит в начале сцены)")]
+        public bool horizontalOnly = true;
+        float lineY;
 
         /// Невидимая стена: дальше этого X героиня не пройдёт (туман у выхода).
         [NonSerialized] public float blockMaxX = float.PositiveInfinity;
@@ -34,6 +37,7 @@ namespace SITF
             anim = GetComponentInChildren<Animator>();
             sr = GetComponentInChildren<SpriteRenderer>();
             rb = GetComponent<Rigidbody2D>();
+            lineY = transform.position.y;
             // героиня ходит по клику и не должна упираться в предметы — физика ей не нужна
             if (rb) rb.bodyType = RigidbodyType2D.Kinematic;
             if (anim && anim.runtimeAnimatorController)
@@ -49,7 +53,7 @@ namespace SITF
         Vector2 Clamp(Vector2 p)
         {
             p.x = Mathf.Clamp(p.x, Mathf.Max(minBounds.x, blockMinX), Mathf.Min(maxBounds.x, blockMaxX));
-            p.y = Mathf.Clamp(p.y, minBounds.y, maxBounds.y);
+            p.y = horizontalOnly ? lineY : Mathf.Clamp(p.y, minBounds.y, maxBounds.y);
             return p;
         }
 

@@ -14,7 +14,15 @@ namespace SITF
             Time.timeScale = 1f;
             var canvas = UIFactory.Canvas("MenuCanvas", 10, transform);
 
-            var bg = UIFactory.Image(canvas.transform, Art.Sprite("ui_menu_bg"), Vector2.zero, "Background");
+            // фон — на отдельном холсте «за» миром, чтобы светлячки летали поверх фона, но под кнопками
+            var bgCanvas = UIFactory.Canvas("MenuBackground", -100, transform);
+            if (Camera.main)
+            {
+                bgCanvas.renderMode = RenderMode.ScreenSpaceCamera;
+                bgCanvas.worldCamera = Camera.main;
+                bgCanvas.planeDistance = 9f;
+            }
+            var bg = UIFactory.Image(bgCanvas.transform, Art.Sprite("ui_menu_bg"), Vector2.zero, "Background");
             UIFactory.Stretch(bg.rectTransform);
 
             var logo = UIFactory.Image(canvas.transform, Art.Sprite("ui_logo"), new Vector2(900, 340), "Logo");
@@ -39,7 +47,7 @@ namespace SITF
                 var fx = new GameObject("MenuFireflies");
                 fx.transform.position = new Vector3(cam.transform.position.x, cam.transform.position.y, 0);
                 var ps = fx.AddComponent<ParticleSystem>();
-                FireflyParticles.Configure(ps, 7f, 6f);
+                FireflyParticles.Configure(ps, 6f, 16f);
             }
         }
 

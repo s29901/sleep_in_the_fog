@@ -1,77 +1,77 @@
-using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 using UnityEngine;
-using UnityEngine.Rendering.Universal;
 
 namespace SITF
 {
-    /// Рой светлячков: частицы со свечением и мерцанием.
+    /// Рой светлячков из нарисованных Firefly (firefly_01/02 + светящееся брюшко).
+    /// Имя класса осталось прежним, чтобы не сломать уже настроенные сцены;
+    /// Particle System на объекте больше не используется (выключается).
     [RequireComponent(typeof(ParticleSystem))]
     public class FireflyParticles : MonoBehaviour
     {
+        [Tooltip("Радиус, в котором летают светлячки (юниты)")]
         public float area = 1.5f;
-        public float rate = 4f;
-        ParticleSystem ps;
+        [Tooltip("Сколько светлячков в рое")]
+        public float rate = 5f;
+        [Tooltip("Каждый какой светлячок светит на окружение (Light 2D). 0 — ни один")]
+        public int lightEvery = 3;
+        public int sortingOrder = 50;
+
+        readonly List<Firefly> flies = new List<Firefly>();
+        bool built;
 
         void Awake()
         {
-            ps = GetComponent<ParticleSystem>();
-            Configure(ps, area, rate);
+            var ps = GetComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var r = GetComponent<ParticleSystemRenderer>();
+            if (r) r.enabled = false;
         }
 
+        void Start() => Build();
+
+        void Build()
+        {
+            if (built) return;
+            built = true;
+            int n = Mathf.Clamp(Mathf.RoundToInt(rate), 0, 30);
+            for (int i = 0; i < n; i++)
+            {
+                Vector3 home = transform.position + (Vector3)(Random.insideUnitCircle * area * 0.5f);
+                bool lit = lightEvery > 0 && i % lightEvery == 0;
+                flies.Add(Firefly.Create(transform, home, area * 0.6f, sortingOrder, lit));
+            }
+        }
+
+        /// Сколько светлячков видно (для роя, из которого часть уже поймали).
         public void SetRate(float r)
         {
-            var e = ps.emission;
-            e.rateOverTime = r;
+            Build();
+            int visible = Mathf.Clamp(Mathf.RoundToInt(r), 0, flies.Count);
+            for (int i = 0; i < flies.Count; i++) if (flies[i]) flies[i].SetVisible(i < visible);
         }
 
+        /// Разлететься (например, когда пытаешься поймать без крышки).
         public void Burst(int count)
         {
-            var ep = new ParticleSystem.EmitParams { applyShapeToPosition = true };
-            ps.Emit(ep, count);
+            foreach (var f in flies) if (f) f.Scatter(Random.insideUnitCircle.normalized);
         }
 
-        public static void Configure(ParticleSystem ps, float area, float rate)
+        /// Плавно погаснуть и исчезнуть вместе с объектом.
+        public void FadeOut(float destroyAfter = 2f)
         {
-            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            var main = ps.main;
-            main.loop = true;
-            main.playOnAwake = true;
-            main.startLifetime = new ParticleSystem.MinMaxCurve(3f, 6f);
-            main.startSpeed = new ParticleSystem.MinMaxCurve(0.05f, 0.25f);
-            main.startSize = new ParticleSystem.MinMaxCurve(0.12f, 0.25f);
-            main.startColor = LightUtil.FireflyColor;
-            main.maxParticles = 60;
-            main.simulationSpace = ParticleSystemSimulationSpace.World;
-            main.prewarm = true;
+            foreach (var f in flies) if (f) f.FadeAndDie();
+            Destroy(gameObject, destroyAfter);
+        }
 
-            var emission = ps.emission;
-            emission.rateOverTime = rate;
-
-            var shape = ps.shape;
-            shape.shapeType = ParticleSystemShapeType.Circle;
-            shape.radius = area;
-
-            var noise = ps.noise;
-            noise.enabled = true;
-            noise.strength = 0.6f;
-            noise.frequency = 0.4f;
-            noise.scrollSpeed = 0.3f;
-
-            var col = ps.colorOverLifetime;
-            col.enabled = true;
-            var g = new Gradient();
-            g.SetKeys(
-                new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
-                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, 0.2f), new GradientAlphaKey(0.3f, 0.45f),
-                        new GradientAlphaKey(1f, 0.6f), new GradientAlphaKey(0.5f, 0.8f), new GradientAlphaKey(0f, 1f) });
-            col.color = g;
-
-            var r = ps.GetComponent<ParticleSystemRenderer>();
-            r.material = Resources.Load<Material>("SITF/GlowMaterial");
-            r.sortingOrder = 50;
-            ps.Play();
+        /// Создать рой на объекте с Particle System (для воспоминания и меню).
+        public static FireflyParticles Configure(ParticleSystem ps, float area, float count)
+        {
+            var fp = ps.GetComponent<FireflyParticles>();
+            if (fp == null) fp = ps.gameObject.AddComponent<FireflyParticles>();
+            fp.area = area;
+            fp.rate = count;
+            return fp;   // рой появится в Start, уже с этими настройками
         }
     }
 }

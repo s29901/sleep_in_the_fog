@@ -55,7 +55,8 @@ namespace SITF
             var fx = new GameObject("MemoryFireflies");
             fx.transform.position = transform.position + Vector3.up * 1.5f;
             var ps = fx.AddComponent<ParticleSystem>();
-            FireflyParticles.Configure(ps, 1.8f, 14f);
+            var memoryFlies = FireflyParticles.Configure(ps, 1.8f, 12f);
+            memoryFlies.lightEvery = 4;
 
             float t = 0;
             while (t < memorySeconds)
@@ -70,8 +71,7 @@ namespace SITF
             }
             if (pivot) pivot.localRotation = Quaternion.identity;
             Destroy(child);
-            ps.Stop();
-            Destroy(fx, 6f);
+            memoryFlies.FadeOut(2f);
 
             GameState.I.MarkDone(Key);
             SpawnShards();
